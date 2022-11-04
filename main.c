@@ -6,7 +6,7 @@
 #define SPATII_TAB 4
 #define MAX_DIM_CONTINUT 3001
 
-#define avanseaza pch++;
+#define avanseaza (pch++);
 #define avanseazaColoana(spatii) {avanseaza; nrColoana += spatii;}
 #define avanseazaLinie {avanseaza; nrLinie++; nrColoana = 1;}
 
@@ -29,6 +29,40 @@ enum {ID, VAR, FUNCTION, IF, ELSE, WHILE, END, RETURN,
       COMMA, COLON, SEMICOLON, LPAR, RPAR, FINISH,
       ADD, SUB, MUL, DIV, AND, OR, NOT, ASSIGN, EQUAL,
       NOTEQ, LESS};
+
+static const char *strAtomi[] = {
+    [ID] = "ID", 
+    [VAR] = "VAR", 
+    [FUNCTION] = "FUNCTION", 
+    [IF] = "IF", 
+    [ELSE] = "ELSE", 
+    [WHILE] = "WHILE", 
+    [END] = "END", 
+    [RETURN] = "RETURN",
+    [TYPE_INT] = "TYPE_INT",
+    [TYPE_REAL] = "TYPE_REAL",
+    [TYPE_STR] = "TYPE_STR",
+    [INT] = "INT",
+    [REAL] = "REAL",
+    [STR] = "STR",
+    [COMMA] = "COMMA",
+    [COLON] = "COLON",
+    [SEMICOLON] = "SEMICOLON",
+    [LPAR] = "LPAR",
+    [RPAR] = "RPAR",
+    [FINISH] = "FINISH",
+    [ADD] = "ADD",
+    [SUB] = "SUB",
+    [MUL] = "MUL",
+    [DIV] = "DIV",
+    [AND] = "AND",
+    [OR] = "OR",
+    [NOT] = "NOT",
+    [ASSIGN] = "ASSIGN",
+    [EQUAL] = "EQUAL",
+    [NOTEQ] = "NOTEQ",
+    [LESS] = "LESS"
+    };
 
 #define N_LUNGIME_TO_INDEX 9
 int lungimeToIndex[] = {
@@ -74,8 +108,6 @@ typedef struct {
     int codAtom;
     char *text;
 } cuvantCheie;
-
-static const cuvantCheie emptay = {-1, ""};
 
 #define ROWS_CUVINTE_CHEIE 8
 #define COLS_CUVINTE_CHEIE 6
@@ -175,7 +207,7 @@ int getNextTk() {
 	int state = 0;
 
     /** Valoarea propriu-zisa a atomului. */
-    char *valoareAtom;
+    char valoareAtom[MAX_STR];
 
 	for(;;) {
         /** Caracterul curent, de analizat. */
@@ -286,7 +318,8 @@ int getNextTk() {
                 indicator.final = pch;
 
                 memcpy(valoareAtom, indicator.start, indicator.final - indicator.start);
-                
+                valoareAtom[indicator.final - indicator.start] = '\0';
+
                 int codCuvantCheie;
 
                 if ((codCuvantCheie = esteCuvantCheie(valoareAtom)) != -1) {
@@ -314,6 +347,7 @@ int getNextTk() {
             case 4:
                 indicator.final = pch;
                 memcpy(valoareAtom, indicator.start, indicator.final - indicator.start);
+                valoareAtom[indicator.final - indicator.start] = '\0';
 
                 addIntToAtom(atoi(valoareAtom));
                 addAtom(INT);
@@ -349,13 +383,16 @@ int getNextTk() {
             case 8:
                 indicator.final = pch;
                 memcpy(valoareAtom, indicator.start, indicator.final - indicator.start);
+                valoareAtom[indicator.final - indicator.start] = '\0';
 
                 addFloatToAtom(atof(valoareAtom));
                 addAtom(REAL);
                 return REAL;
             case 9:
                 indicator.final = pch;
+
                 memcpy(valoareAtom, indicator.start, indicator.final - indicator.start);
+                valoareAtom[indicator.final - indicator.start] = '\0';
 
                 addStringToAtom(valoareAtom);
                 addAtom(STR);
@@ -460,6 +497,31 @@ int getNextTk() {
 		}
 }
 
+void vizualizareAtomi() {
+    int linieCurenta = atomi[0].linie - 1;
+
+    for (int i = 0; i < nAtomi; i++) {
+        if (atomi[i].linie != linieCurenta) {
+            printf("\nLinia %d: ", atomi[i].linie);
+            linieCurenta = atomi[i].linie ;    
+        }
+
+        printf(" %s", strAtomi[atomi[i].codAtom]);
+            
+        if (atomi[i].valoare.tipCurent == 1) {
+            printf(":%d ", atomi[i].valoare.valoareInt);
+        }
+        else if (atomi[i].valoare.tipCurent == 2) {
+            printf(":%f ", atomi[i].valoare.valoareFloat);
+        }
+        else if (atomi[i].valoare.tipCurent == 3) {
+            printf(":%s ", atomi[i].valoare.valoareStr);
+        }
+    }
+
+    printf("\n");
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("Eroare argument: Specificati fisierul sursa!\n");
@@ -489,17 +551,5 @@ int main(int argc, char *argv[]) {
     /** Extragem, pe rand, atomii. */
 	while(getNextTk() != FINISH) {};
 
-    for (int i = 0; i < nAtomi; i++) {
-        printf("Atom: %d\n", atomi[i].codAtom);
-
-        if (atomi[i].valoare.tipCurent == 1) {
-            printf("%d\n", atomi[i].valoare.valoareInt);
-        }
-        else if (atomi[i].valoare.tipCurent == 2) {
-            printf("%f\n", atomi[i].valoare.valoareFloat);
-        }
-        else if (atomi[i].valoare.tipCurent == 3) {
-            printf("%s\n", atomi[i].valoare.valoareStr);
-        }
-    }
+    vizualizareAtomi();
 }

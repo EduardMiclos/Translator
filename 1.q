@@ -1,1 +1,3 @@
-str abc = "2.412";
+str abc = "edi";
+#test wefsd  
+str abc2 = "andrei";
