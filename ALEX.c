@@ -238,7 +238,7 @@ int getNextTk() {
                     state = 10;
                     avanseazaColoana(1)
                 }
-                else if (ch == '.') {
+                else if (ch == ':') {
                     state = 11;
                     avanseazaColoana(1)
                 }
@@ -346,6 +346,7 @@ int getNextTk() {
                 break;
             case 4:
                 indicator.final = pch;
+
                 memcpy(valoareAtom, indicator.start, indicator.final - indicator.start);
                 valoareAtom[indicator.final - indicator.start] = '\0';
 
@@ -382,6 +383,7 @@ int getNextTk() {
                 break;
             case 8:
                 indicator.final = pch;
+
                 memcpy(valoareAtom, indicator.start, indicator.final - indicator.start);
                 valoareAtom[indicator.final - indicator.start] = '\0';
 
