@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     /** Analizorul sintactic. */
     idxAtom = 0;
     if (program())
-        printf("Analiza sintactica completa!");
+        printf("Analiza sintactica completa!\n");
 
     return 0;
 }
