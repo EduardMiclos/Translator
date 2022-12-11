@@ -1,6 +1,5 @@
 #pragma once
 
-
 /** ================= */
 int program();
 int defVar();
@@ -18,16 +17,21 @@ int exprAdd();
 int exprMul();
 int exprPrefix();
 int factor();
+int consume(int);
+void err(const char*);
 /** ================= */
 
+Atom *consumed;
+Ret ret;
 
-void err (const char *msg) {
+void err(const char *msg) {
     printf("Eroare in linia %d: %s\n", atomi[idxAtom].linie, msg);
     exit(EXIT_FAILURE);
 }
 
 int consume(int cod) {
 	if(atomi[idxAtom].codAtom == cod){
+        consumed = &atomi[idxAtom];
 		idxAtom++;
 		return TRUE;
 	}
@@ -86,9 +90,13 @@ int exprMul() {
 
     if (exprPrefix()) {
         while (1) {
-            if (consume(MUL) || consume(DIV)) {
+            if (consume(MUL)) {
                 if (exprPrefix()) {}
-                else err("Lipseste operandul in cadrul inmultirii/impartirii!");
+                else err("Lipseste operandul dupa operatorul de inmultire!");
+            }
+            else if (consume(DIV)) {
+                if (exprPrefix()) {}
+                else err("Lipseste operandul dupa operatorul de impartire!");
             }
             else break;
         }
@@ -105,9 +113,13 @@ int exprAdd() {
 
     if (exprMul()) {
         while (1) {
-            if (consume(ADD) || consume(SUB)) {
+            if (consume(ADD)) {
                 if (exprMul()) {}
-                else err("Lipseste operandul in cadrul adunarii/scaderii!");
+                else err("Lipseste operandul dupa operatorul de adunare!");
+            }
+            else if (consume(SUB)) {
+                if (exprMul()) {}
+                else err("Lipseste operandul dupa operatorul de scadere!");
             }
             else break;
         }
@@ -122,9 +134,13 @@ int exprComp() {
     int atomStart = idxAtom;
 
     if (exprAdd()) {
-        if (consume(LESS) || consume(EQUAL)) {
+        if (consume(LESS)) {
             if (exprAdd()) {}
-            else err("Lipseste operandul in cadrul compararii!");
+            else err("Lipseste operandul dupa LESS!");
+        }
+        else if (consume(EQUAL)) {
+            if (exprAdd()) {}
+            else err("Lipseste operandul dupa EQUAL!");
         }
 
         return TRUE;
@@ -139,7 +155,8 @@ int exprAssign() {
 
     if (consume(ID)) {
         if (consume(ASSIGN)) {}
-        else idxAtom = atomStart;
+        else
+            idxAtom = atomStart;
     }
 
     if (exprComp())
@@ -154,9 +171,13 @@ int exprLogic() {
 
     if (exprAssign()) {
         while (1) {
-            if (consume(AND) || consume(OR)) {
+            if (consume(AND)) {
                 if (exprAssign()) {}
-                else err("Lipseste operandul in cadrul expresiei logice!");
+                else err("Lipseste operandul dupa AND!");
+            }
+            else if (consume(OR)) {
+                if (exprAssign()) {}
+                else err("Lipseste operandul dupa OR!");
             }
             else break;
         }
@@ -180,9 +201,15 @@ int expr() {
 int instr() {
     int startAtom = idxAtom;
 
-    if (expr()) {}
+    if (expr()) {
+        if (consume(SEMICOLON)) return TRUE;
+        else {
+            idxAtom = startAtom;
+            err("Lipseste ';' la finalul expresiei!");
+        }
+    }
+    else if (consume(SEMICOLON)) return TRUE;
 
-    if (consume(SEMICOLON)) return TRUE;
     if (consume(IF)) {
         if (consume(LPAR)) {
             if (expr()) {
@@ -238,13 +265,25 @@ int funcParam() {
     int atomStart = idxAtom; 
     
     if (consume(ID)) {
+        const char *nume = consumed->valoare.valoareStr;
+        Simbol *s = cautaInDomeniulCurent(nume);
+        if (s)
+            err(strcat("Redefinire simbol: ", nume));
+
+        s = adaugaSimbol(nume, FEL_ARG);
+        Simbol *argFn = adaugaArgFn(crtFn, nume);
+
         if (consume(COLON)) {
-            if (baseType()) return TRUE;
-            else err("Lipseste tipul parametrului!");
+            if (baseType()) {
+                s->tip = ret.tip;
+                argFn->tip = ret.tip;
+                return TRUE;
+            }
+            else err("Tipul parametrului este invalid sau inexistent!");
         }
         else err("Lipseste ':' in declararea parametrului!");
     }
-
+    
     idxAtom = atomStart;
     return FALSE;
 }
@@ -282,24 +321,39 @@ int defFunc() {
 
     if (consume(FUNCTION)) {
         if (consume(ID)) {
+            const char *nume = consumed->valoare.valoareStr;
+            Simbol *s = cautaInDomeniulCurent(nume);
+
+            if (s)
+                err(strcat("Redefinire simbol: ", nume));
+                
+            crtFn = adaugaSimbol(nume, FEL_FN);
+            crtFn->args = NULL;
+            adaugaDomeniu();
+
             if (consume(LPAR)) {
                 if (funcParams()) {
                     if (consume(RPAR)) {
                         if (consume(COLON)) {
                             if (baseType()) {
+                                crtFn->tip = ret.tip;
                                 while(1) {
                                     if (defVar()) {}
                                     else break;
                                 }
 
                                 if (block()) {
-                                    if(consume(END))
+                                    if(consume(END)) {
+                                        stergeDomeniu();
+                                        crtFn = NULL;
+
                                         return TRUE;
+                                    }
                                     else err("Lipseste END la sfarsitul blocului de instructiuni!");
                                 }
                                 else err("Lipseste blocul de instructiuni in definitia functiei!");
                             }
-                            else err("Tip invalid de variabila!");
+                            else err("Tipul returnat de functie este invalid sau inexistent!");
                         }
                         else err("Lipseste ':' in declararea functiei!");
                     }
@@ -318,10 +372,18 @@ int defFunc() {
 int baseType() {
     int atomStart = idxAtom;
 
-    if (consume(TYPE_INT)  || 
-        consume(TYPE_REAL) || 
-        consume(TYPE_STR)) 
+    if (consume(TYPE_INT)) {
+        ret.tip = TYPE_INT;
         return TRUE;
+    }
+    if (consume(TYPE_REAL)) {
+        ret.tip = TYPE_REAL;
+        return TRUE;
+    }
+    if (consume(TYPE_STR)) {
+        ret.tip = TYPE_STR;
+        return TRUE;
+    }
     
     idxAtom = atomStart;
     return FALSE;
@@ -332,25 +394,39 @@ int defVar() {
 
     if (consume(VAR)) {
         if (consume(ID)) {
+            const char *nume = consumed->valoare.valoareStr;
+            Simbol *s = cautaInDomeniulCurent(nume);
+            if (s) 
+                err(strcat("Redefinire simbol: ", nume));
+
+            s = adaugaSimbol(nume, FEL_VAR);
+            s->local = crtFn != NULL;
+
             if (consume(COLON)) {
                 if (baseType()) {
+                    s->tip = ret.tip;
                     if(consume(SEMICOLON))
                         return TRUE;
-                    else err("Lipseste ';' la finalul declaratiei de variabila!");
+                    else {
+                        idxAtom = atomStart;
+                        err("Lipseste ';' la finalul declaratiei de variabila!");
+                    }
                 }
-                else err("Tip invalid de variabila!");
+                else err("Tip de variabila invalid sau inexistent!");
             }
             else err("Lipseste ':' in interiorul declaratiei de variabila!");
         }
         else err("Lipseste denumirea variabilei!");
     }
-    
+
     idxAtom = atomStart;
     return FALSE;
 }
 
 int program() {
     int atomStart = idxAtom;
+
+    adaugaDomeniu();
 
     while (1) {
         if (defVar()) {}
@@ -359,8 +435,10 @@ int program() {
         else break;
     }
 
-    if (consume(FINISH))
+    if (consume(FINISH)) {
+        stergeDomeniu();
         return TRUE;
+    }
 
     idxAtom = atomStart;
     return FALSE;

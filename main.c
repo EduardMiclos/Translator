@@ -31,8 +31,10 @@ int main(int argc, char *argv[]) {
 
     /** Analizorul sintactic. */
     idxAtom = 0;
-    if (program())
+    if (program()) {
         printf("Analiza sintactica completa!\n");
+        printf("Analiza de domeniu completa!\n");
+    }
 
     return 0;
 }
