@@ -1,7 +1,9 @@
 # program de test
 
 function max(x:int, y:int):int
-    if(x<y)
+    var a:int;
+
+    if(x<a)
         return y;
     else
         return x;
@@ -12,7 +14,7 @@ var i:int;
 i=0;    # iterator
 while(i<10)
     puti(max(i,5));
-    i=i+1;
+    i=i+max;
     end
 
 puts("PI=");

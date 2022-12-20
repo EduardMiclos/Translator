@@ -18,6 +18,7 @@
 
 /** ======= Semantic Analysis ====== */
 #include "AD.h"
+#include "AT.h"
 /** ================================ */
 
 /** ====== Syntactic Analysis ====== */

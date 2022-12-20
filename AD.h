@@ -49,7 +49,6 @@ Domeniu *tabelaSim;
 Simbol *crtFn;
 
 
-
 /** ================= */
 
 /** Adauga un nou domeniu in TS si il seteaza ca fiind domeniul curent. */
@@ -78,8 +77,8 @@ void stergeSimbol(Simbol*);
 
 /** Sterge o lista de simboluri. */
 void stergeSimboluri(Simbol*);
-/** ================= */
 
+/** ================= */
 
 
 Domeniu *adaugaDomeniu() {
@@ -117,6 +116,7 @@ void stergeDomeniu() {
 
     if (tabelaSim == NULL) return;
     Domeniu *domeniuCurent = tabelaSim;
+
     tabelaSim = tabelaSim->parinte;
 
     stergeSimboluri(domeniuCurent->simboluri);
@@ -127,7 +127,7 @@ void stergeDomeniu() {
 
 Simbol* cautaInLista(Simbol *lista, const char *nume) {
     for (Simbol *s = lista; s; s = s->urm) {
-		if (!strcmp(s->nume,nume)) return s;
+		if (!strcmp(s->nume, nume)) return s;
 	}
 	return NULL;
 }
@@ -138,7 +138,7 @@ Simbol *cautaInDomeniulCurent(const char *nume){
 
 Simbol *cautaSimbol(const char *nume){
     for (Domeniu *d = tabelaSim; d; d = d->parinte) {
-        Simbol *s = cautaInLista(d->simboluri,nume);
+        Simbol *s = cautaInLista(d->simboluri, nume);
         if (s) return s;
     }
     return NULL;

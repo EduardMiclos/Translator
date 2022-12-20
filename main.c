@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
     if (program()) {
         printf("Analiza sintactica completa!\n");
         printf("Analiza de domeniu completa!\n");
+        printf("Analiza de tip completa!\n");
     }
 
     return 0;

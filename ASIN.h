@@ -21,9 +21,6 @@ int consume(int);
 void err(const char*);
 /** ================= */
 
-Atom *consumed;
-Ret ret;
-
 void err(const char *msg) {
     printf("Eroare in linia %d: %s\n", atomi[idxAtom].linie, msg);
     exit(EXIT_FAILURE);
@@ -42,9 +39,18 @@ int consume(int cod) {
 int factor() {
     int atomStart = idxAtom;
 
-    if (consume(INT)) return TRUE;
-    if (consume(REAL)) return TRUE;
-    if (consume(STR)) return TRUE;
+    if (consume(INT)) {
+        setRet(TYPE_INT, false);
+        return TRUE;
+    }
+    if (consume(REAL)) {
+        setRet(TYPE_REAL, false);
+        return TRUE;
+    }
+    if (consume(STR)) {
+        setRet(TYPE_STR, false);
+        return TRUE;
+    }
     if (consume(LPAR)) {
         if (expr()) {
             if (consume(RPAR))
@@ -53,21 +59,90 @@ int factor() {
         }
     }
     else if (consume(ID)) {
+        Simbol *s = cautaSimbol(consumed->valoare.valoareStr);
+        if (!s) {
+            char err_str[300];
+
+            sprintf(err_str, "Identificator necunoscut: %s", consumed->valoare.valoareStr);
+            err(err_str);
+        }
         if (consume(LPAR)) {
+            if (s->fel != FEL_FN) {
+                char err_str[300];
+                
+                sprintf(err_str, "%s nu poate fi apelata, deoarece nu este o functie!", consumed->valoare.valoareStr);
+                err(err_str);
+            }
+
+            Simbol *argDef = s->args;
+
             if (expr()) {
+                if (!argDef) {
+                    char err_str[300];
+
+                    sprintf(err_str, "Functia %s este apelata cu prea multe argumente!", s->nume);
+                    err(err_str);
+                }
+
+                if (argDef->tip != ret.tip) {
+                    char err_str[300];
+
+                    sprintf(err_str, "Tipul argumentului de la apelul functiei %s este diferit de cel de la definirea ei", s->nume);
+                    err(err_str);
+                }
+
+                argDef = argDef->urm;
+
                 while(1) {
                     if (consume(COMMA)) {
-                        if (expr()) {}
+                        if (expr()) {
+                            if (!argDef) {
+                                char err_str[300];
+
+                                sprintf(err_str, "Functia %s este apelata cu prea multe argumente!", s->nume);
+                                err(err_str);
+                            }
+
+                            if (argDef->tip != ret.tip) {
+                                char err_str[300];
+
+                                sprintf(err_str, "Tipul argumentului de la apelul functiei %s este diferit de cel de la definirea ei", s->nume);
+                                err(err_str);
+                            }
+
+                            argDef = argDef->urm;
+                        }
                         else err("Lipseste parametrul functiei dupa virgula!");
                     }
                     else break;
                 }
             }
 
-            if (consume(RPAR)) return TRUE;
-            else err("Lipseste ')' la sfarsitul apelului de functiei!");
-        }
+            if (consume(RPAR)) {
+                if (argDef) {
+                    char err_str[300];
 
+                    sprintf(err_str, "Functia %s este apelata cu prea putine argumente!", s->nume);
+                    err(err_str);
+                }
+
+                setRet(s->tip, false);
+                return TRUE;
+            }
+            else {
+                err("Lipseste ')' la sfarsitul apelului de functiei!");
+            }
+        }
+        else {
+                                if (s->fel == FEL_FN) {
+                    char err_str[300];
+
+                    sprintf(err_str, "Functia %s se poate doar apela!", s->nume);
+                    err(err_str);
+                }
+
+                setRet(s->tip, true);
+        }
         return TRUE;
     }
 
@@ -78,8 +153,18 @@ int factor() {
 int exprPrefix() {
     int atomStart = idxAtom;
 
-    if (consume(SUB) || consume(NOT)) {}
-    if (factor()) return TRUE;
+    if (consume(SUB) && factor()) {
+
+        if (ret.tip == TYPE_STR)
+            err("Expresia lui - unar trebuia sa aiba tipul INT sau REAL!");
+        ret.lval = false;
+    }
+    else if (consume(NOT) && factor()) {
+        if (ret.tip == TYPE_STR)
+            err("Expresia lui ! unar trebuia sa aiba tipul INT sau REAL!");
+        setRet(TYPE_INT, false);
+    }
+    else if (factor()) return TRUE;
 
     idxAtom = atomStart;
     return FALSE;
@@ -91,11 +176,29 @@ int exprMul() {
     if (exprPrefix()) {
         while (1) {
             if (consume(MUL)) {
-                if (exprPrefix()) {}
+                Ret tipStanga = ret;
+
+                if (tipStanga.tip == TYPE_STR)
+                    err("Operanzii lui * nu pot fi de tip STR!");
+
+                if (exprPrefix()) {
+                    if (tipStanga.tip != ret.tip)
+                        err("Tipuri diferite pentru operanzii lui *!");
+                    ret.lval = false;
+                }
                 else err("Lipseste operandul dupa operatorul de inmultire!");
             }
             else if (consume(DIV)) {
-                if (exprPrefix()) {}
+                Ret tipStanga = ret;
+
+                if (tipStanga.tip == TYPE_STR)
+                    err("Operanzii lui / nu pot fi de tip STR!");
+
+                if (exprPrefix()) {
+                    if (tipStanga.tip != ret.tip)
+                        err("Tipuri diferite pentru operanzii lui /!");
+                    ret.lval = false;
+                }
                 else err("Lipseste operandul dupa operatorul de impartire!");
             }
             else break;
@@ -114,11 +217,28 @@ int exprAdd() {
     if (exprMul()) {
         while (1) {
             if (consume(ADD)) {
-                if (exprMul()) {}
+                Ret tipStanga = ret;
+                if (tipStanga.tip == TYPE_STR)
+                    err("Operanzii lui + nu pot fi de tip STR!");
+
+                if (exprMul()) {
+                    if (tipStanga.tip != ret.tip)
+                        err("Tipuri diferite pentru operanzii lui +!");
+                    ret.lval = false;
+                }
                 else err("Lipseste operandul dupa operatorul de adunare!");
             }
             else if (consume(SUB)) {
-                if (exprMul()) {}
+                Ret tipStanga = ret;
+
+                if (tipStanga.tip == TYPE_STR)
+                    err("Operanzii lui - nu pot fi de tip STR!");
+
+                if (exprMul()) {
+                    if (tipStanga.tip != ret.tip)
+                        err("Tipuri diferite pentru operanzii lui -!");
+                    ret.lval = false;
+                }
                 else err("Lipseste operandul dupa operatorul de scadere!");
             }
             else break;
@@ -135,11 +255,23 @@ int exprComp() {
 
     if (exprAdd()) {
         if (consume(LESS)) {
-            if (exprAdd()) {}
+            Ret tipStanga = ret;
+
+            if (exprAdd()) {
+                if (tipStanga.tip != ret.tip)
+                    err("Tipuri diferite pentru operanzii lui <!");
+                setRet(TYPE_INT, false);
+            }
             else err("Lipseste operandul dupa LESS!");
         }
         else if (consume(EQUAL)) {
-            if (exprAdd()) {}
+            Ret tipStanga = ret;
+
+            if (exprAdd()) {
+                if (tipStanga.tip != ret.tip)
+                    err("Tipuri diferite pentru operanzii lui ==!");
+                setRet(TYPE_INT, false);
+            }
             else err("Lipseste operandul dupa EQUAL!");
         }
 
@@ -154,13 +286,38 @@ int exprAssign() {
     int atomStart = idxAtom;
 
     if (consume(ID)) {
-        if (consume(ASSIGN)) {}
-        else
-            idxAtom = atomStart;
+        const char *nume = consumed->valoare.valoareStr;
+
+        if (consume(ASSIGN)) { 
+            if (exprComp()) {
+                Simbol *s = cautaSimbol(nume);
+                
+                if (!s) {
+                    char err_str[300];
+                    sprintf(err_str, "Identificator necunoscut: %s", nume);
+
+                    err(err_str);
+                }
+
+                if (s->tip == FEL_FN) {
+                    char err_str[500];
+                    sprintf(err_str, "O functie (%s) nu poate fi folosita ca destinatie a unei atriburi", nume);
+
+                    err(err_str);
+                }
+
+                if (s->tip != ret.tip)
+                    err("Sursa si destinatia atribuirii au tipuri diferite!");
+
+                ret.lval = false;
+                return TRUE;
+            }
+        }
+        else idxAtom = atomStart;
     }
 
     if (exprComp())
-        return TRUE;
+            return TRUE;
 
     idxAtom = atomStart;
     return FALSE;
@@ -172,11 +329,27 @@ int exprLogic() {
     if (exprAssign()) {
         while (1) {
             if (consume(AND)) {
-                if (exprAssign()) {}
+                Ret tipStanga = ret;
+                if (tipStanga.tip == TYPE_STR)
+                    err("Operandul stang al lui && sau || nu poate fi de tip STR");
+
+                if (exprAssign()) {
+                    if (ret.tip == TYPE_STR)
+                        err("Operandul drept al lui && sau || nu poate fi de tip STR");
+                    setRet(TYPE_INT, false);
+                }
                 else err("Lipseste operandul dupa AND!");
             }
             else if (consume(OR)) {
-                if (exprAssign()) {}
+                Ret tipStanga = ret;
+                if (tipStanga.tip == TYPE_STR)
+                    err("Operandul stang al lui && sau || nu poate fi de tip STR");
+
+                if (exprAssign()) {
+                    if (ret.tip == TYPE_STR)
+                        err("Operandul drept al lui && sau || nu poate fi de tip STR");
+                    setRet(TYPE_INT, false);
+                }
                 else err("Lipseste operandul dupa OR!");
             }
             else break;
@@ -213,6 +386,9 @@ int instr() {
     if (consume(IF)) {
         if (consume(LPAR)) {
             if (expr()) {
+                if (ret.tip == TYPE_STR)
+                    err("Conditia lui IF trebuie sa aiba tipul INT sau REAL.");
+
                 if (consume(RPAR)) {
                     if (block()) {
                         if (consume(ELSE)) {
@@ -234,6 +410,12 @@ int instr() {
     }
     else if (consume(RETURN)) {
         if (expr()) {
+            if (!crtFn)
+                err("RETURN poate fi folosit doar intr-o functie!");
+            
+            if (ret.tip != crtFn->tip)
+                err("Tipul lui RETURN este diferit de tipul returnat de functie!");
+
             if (consume(SEMICOLON)) 
                 return TRUE;
             else err("Lipseste ';' la finalul instructiunii RETURN!");
@@ -243,6 +425,9 @@ int instr() {
     else if (consume(WHILE)) {
         if (consume(LPAR)) {
             if (expr()) {
+                if (ret.tip == TYPE_STR)
+                    err("Conditia lui WHILE trebuie sa aiba tipul INT sau REAL.");
+
                 if (consume(RPAR)) {
                     if (block()) {
                         if (consume(END))
@@ -326,9 +511,11 @@ int defFunc() {
 
             if (s)
                 err(strcat("Redefinire simbol: ", nume));
-                
+
             crtFn = adaugaSimbol(nume, FEL_FN);
+
             crtFn->args = NULL;
+
             adaugaDomeniu();
 
             if (consume(LPAR)) {
@@ -396,16 +583,23 @@ int defVar() {
         if (consume(ID)) {
             const char *nume = consumed->valoare.valoareStr;
             Simbol *s = cautaInDomeniulCurent(nume);
-            if (s) 
-                err(strcat("Redefinire simbol: ", nume));
+    
+            if (s) { 
+                char err_str[100];
+                sprintf(err_str, "Redefinire simbol: %s", nume);
+
+                err(err_str);
+            }
 
             s = adaugaSimbol(nume, FEL_VAR);
-            s->local = crtFn != NULL;
+            s->local = (crtFn != NULL);
 
             if (consume(COLON)) {
                 if (baseType()) {
                     s->tip = ret.tip;
-                    if(consume(SEMICOLON))
+                
+
+                    if (consume(SEMICOLON))
                         return TRUE;
                     else {
                         idxAtom = atomStart;
@@ -426,7 +620,8 @@ int defVar() {
 int program() {
     int atomStart = idxAtom;
 
-    adaugaDomeniu();
+   adaugaDomeniu();
+   adaugaFnPredefinite();
 
     while (1) {
         if (defVar()) {}
