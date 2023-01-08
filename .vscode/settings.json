@@ -2,6 +2,7 @@
     "C_Cpp.errorSquiggles": "Disabled",
     "files.associations": {
         "at.h": "c",
-        "ad.h": "c"
+        "ad.h": "c",
+        "stddef.h": "c"
     }
 }

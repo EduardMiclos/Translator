@@ -4,7 +4,7 @@
     Email: micloseduard@yahoo.com
     Universitatea Politehnica Timisoara, 
         Faculty of Automation and Computer Science,
-            Informatics, 3rd year.
+            Informatics, 3rd year
     ====================================  
 **/
 
@@ -15,6 +15,10 @@
 /** ====== Lexical Analysis ====== */
 #include "ALEX.h"
 /** ============================== */
+
+/** ======= Code generation ====== */
+#include "GEN.h"
+/** ================================ */
 
 /** ======= Semantic Analysis ====== */
 #include "AD.h"

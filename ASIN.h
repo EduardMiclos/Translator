@@ -40,26 +40,38 @@ int factor() {
     int atomStart = idxAtom;
 
     if (consume(INT)) {
+        Text_write(crtCod, "%d", consumed->valoare.valoareInt);
+
         setRet(TYPE_INT, false);
         return TRUE;
     }
     if (consume(REAL)) {
+        Text_write(crtCod, "%g", consumed->valoare.valoareFloat);
+
         setRet(TYPE_REAL, false);
         return TRUE;
     }
     if (consume(STR)) {
+        Text_write(crtCod, "%s", consumed->valoare.valoareStr);
+
         setRet(TYPE_STR, false);
         return TRUE;
     }
     if (consume(LPAR)) {
+        Text_write(crtCod, "(");
+
         if (expr()) {
-            if (consume(RPAR))
+            if (consume(RPAR)) {
+                Text_write(crtCod, ")");
                 return TRUE;
+            }
             else err("Lipseste ')' la finalul expresiei!");
         }
     }
     else if (consume(ID)) {
         Simbol *s = cautaSimbol(consumed->valoare.valoareStr);
+        Text_write(crtCod, "%s", s->nume);
+
         if (!s) {
             char err_str[300];
 
@@ -67,6 +79,8 @@ int factor() {
             err(err_str);
         }
         if (consume(LPAR)) {
+            Text_write(crtCod, "(");
+
             if (s->fel != FEL_FN) {
                 char err_str[300];
                 
@@ -95,6 +109,8 @@ int factor() {
 
                 while(1) {
                     if (consume(COMMA)) {
+                        Text_write(crtCod, ",");
+
                         if (expr()) {
                             if (!argDef) {
                                 char err_str[300];
@@ -119,6 +135,8 @@ int factor() {
             }
 
             if (consume(RPAR)) {
+                Text_write(crtCod, ")");
+
                 if (argDef) {
                     char err_str[300];
 
@@ -134,14 +152,14 @@ int factor() {
             }
         }
         else {
-                                if (s->fel == FEL_FN) {
-                    char err_str[300];
+            if (s->fel == FEL_FN) {
+            char err_str[300];
 
-                    sprintf(err_str, "Functia %s se poate doar apela!", s->nume);
-                    err(err_str);
-                }
+            sprintf(err_str, "Functia %s se poate doar apela!", s->nume);
+            err(err_str);
+            }
 
-                setRet(s->tip, true);
+            setRet(s->tip, true);
         }
         return TRUE;
     }
@@ -153,16 +171,23 @@ int factor() {
 int exprPrefix() {
     int atomStart = idxAtom;
 
-    if (consume(SUB) && factor()) {
+    if (consume(SUB)) {
+        Text_write(crtCod, "-");
 
-        if (ret.tip == TYPE_STR)
-            err("Expresia lui - unar trebuia sa aiba tipul INT sau REAL!");
-        ret.lval = false;
+        if (factor()) {
+            if (ret.tip == TYPE_STR)
+                err("Expresia lui - unar trebuia sa aiba tipul INT sau REAL!");
+            ret.lval = false;
+        }
     }
-    else if (consume(NOT) && factor()) {
-        if (ret.tip == TYPE_STR)
-            err("Expresia lui ! unar trebuia sa aiba tipul INT sau REAL!");
-        setRet(TYPE_INT, false);
+    else if (consume(NOT)) {
+        Text_write(crtCod, "!");
+
+        if (factor()) {
+            if (ret.tip == TYPE_STR)
+                err("Expresia lui ! unar trebuia sa aiba tipul INT sau REAL!");
+            setRet(TYPE_INT, false);
+        }
     }
     else if (factor()) return TRUE;
 
@@ -177,6 +202,7 @@ int exprMul() {
         while (1) {
             if (consume(MUL)) {
                 Ret tipStanga = ret;
+                Text_write(crtCod, "*");
 
                 if (tipStanga.tip == TYPE_STR)
                     err("Operanzii lui * nu pot fi de tip STR!");
@@ -190,6 +216,7 @@ int exprMul() {
             }
             else if (consume(DIV)) {
                 Ret tipStanga = ret;
+                Text_write(crtCod, "/");
 
                 if (tipStanga.tip == TYPE_STR)
                     err("Operanzii lui / nu pot fi de tip STR!");
@@ -218,6 +245,8 @@ int exprAdd() {
         while (1) {
             if (consume(ADD)) {
                 Ret tipStanga = ret;
+                Text_write(crtCod, "+");
+
                 if (tipStanga.tip == TYPE_STR)
                     err("Operanzii lui + nu pot fi de tip STR!");
 
@@ -230,6 +259,7 @@ int exprAdd() {
             }
             else if (consume(SUB)) {
                 Ret tipStanga = ret;
+                Text_write(crtCod, "-");
 
                 if (tipStanga.tip == TYPE_STR)
                     err("Operanzii lui - nu pot fi de tip STR!");
@@ -256,6 +286,7 @@ int exprComp() {
     if (exprAdd()) {
         if (consume(LESS)) {
             Ret tipStanga = ret;
+            Text_write(crtCod, "<");
 
             if (exprAdd()) {
                 if (tipStanga.tip != ret.tip)
@@ -266,6 +297,7 @@ int exprComp() {
         }
         else if (consume(EQUAL)) {
             Ret tipStanga = ret;
+            Text_write(crtCod, "==");
 
             if (exprAdd()) {
                 if (tipStanga.tip != ret.tip)
@@ -288,7 +320,9 @@ int exprAssign() {
     if (consume(ID)) {
         const char *nume = consumed->valoare.valoareStr;
 
-        if (consume(ASSIGN)) { 
+        if (consume(ASSIGN)) {
+            Text_write(crtCod, "%s=", nume);
+
             if (exprComp()) {
                 Simbol *s = cautaSimbol(nume);
                 
@@ -330,6 +364,9 @@ int exprLogic() {
         while (1) {
             if (consume(AND)) {
                 Ret tipStanga = ret;
+
+                Text_write(crtCod, "&&");
+
                 if (tipStanga.tip == TYPE_STR)
                     err("Operandul stang al lui && sau || nu poate fi de tip STR");
 
@@ -342,6 +379,8 @@ int exprLogic() {
             }
             else if (consume(OR)) {
                 Ret tipStanga = ret;
+
+                Text_write(crtCod, "||");
                 if (tipStanga.tip == TYPE_STR)
                     err("Operandul stang al lui && sau || nu poate fi de tip STR");
 
@@ -375,7 +414,11 @@ int instr() {
     int startAtom = idxAtom;
 
     if (expr()) {
-        if (consume(SEMICOLON)) return TRUE;
+        if (consume(SEMICOLON)) {
+            Text_write(crtCod, ";\n");
+
+            return TRUE;
+        }
         else {
             idxAtom = startAtom;
             err("Lipseste ';' la finalul expresiei!");
@@ -385,14 +428,24 @@ int instr() {
 
     if (consume(IF)) {
         if (consume(LPAR)) {
+            Text_write(crtCod, "if(");
+
             if (expr()) {
                 if (ret.tip == TYPE_STR)
                     err("Conditia lui IF trebuie sa aiba tipul INT sau REAL.");
 
                 if (consume(RPAR)) {
+                    Text_write(crtCod, "){\n");
+
                     if (block()) {
+                        Text_write(crtCod, "}\n");
+
                         if (consume(ELSE)) {
-                            if (block()) {}
+                            Text_write(crtCod, "else{\n");
+
+                            if (block()) {
+                                Text_write(crtCod, "}\n");
+                            }
                             else err("Lipseste blocul de instructiuni din ELSE!");
                         }
 
@@ -409,6 +462,8 @@ int instr() {
         else err("Lipseste '(' dupa IF!");
     }
     else if (consume(RETURN)) {
+        Text_write(crtCod, "return ");
+
         if (expr()) {
             if (!crtFn)
                 err("RETURN poate fi folosit doar intr-o functie!");
@@ -416,22 +471,32 @@ int instr() {
             if (ret.tip != crtFn->tip)
                 err("Tipul lui RETURN este diferit de tipul returnat de functie!");
 
-            if (consume(SEMICOLON)) 
+            if (consume(SEMICOLON)) {
+                Text_write(crtCod, ";\n");
+
                 return TRUE;
+            }
             else err("Lipseste ';' la finalul instructiunii RETURN!");
         }
         else err("Lipseste o expresie dupa RETURN!");
     }
     else if (consume(WHILE)) {
+        Text_write(crtCod, "while(");
+
         if (consume(LPAR)) {
             if (expr()) {
                 if (ret.tip == TYPE_STR)
                     err("Conditia lui WHILE trebuie sa aiba tipul INT sau REAL.");
 
                 if (consume(RPAR)) {
+                    Text_write(crtCod, "){\n");
+
                     if (block()) {
-                        if (consume(END))
+                        if (consume(END)) {
+                            Text_write(crtCod, "}\n");
+
                             return TRUE;
+                        }
                     }
                     else err("Lipseste blocul de instructiuni din WHILE!");
                 }
@@ -462,6 +527,9 @@ int funcParam() {
             if (baseType()) {
                 s->tip = ret.tip;
                 argFn->tip = ret.tip;
+
+                Text_write(&tAntetFn, "%s %s", cType(ret.tip), nume);
+
                 return TRUE;
             }
             else err("Tipul parametrului este invalid sau inexistent!");
@@ -477,6 +545,8 @@ int funcParams() {
     if (funcParam()) {
         while(1) {
             if (consume(COMMA)) {
+                Text_write(&tAntetFn, ",");
+
                 if (funcParam()) {}
                 else err("Lipsesc parametrii dupa virgula!");
             }
@@ -509,6 +579,11 @@ int defFunc() {
             const char *nume = consumed->valoare.valoareStr;
             Simbol *s = cautaInDomeniulCurent(nume);
 
+            crtCod = &tFunctii;
+            crtVar = &tFunctii;
+            Text_clear(&tAntetFn);
+            Text_write(&tAntetFn, "%s(",nume);
+
             if (s)
                 err(strcat("Redefinire simbol: ", nume));
 
@@ -524,6 +599,9 @@ int defFunc() {
                         if (consume(COLON)) {
                             if (baseType()) {
                                 crtFn->tip = ret.tip;
+
+                                Text_write(&tFunctii, "\n%s %s){\n", cType(ret.tip), tAntetFn.buf);
+
                                 while(1) {
                                     if (defVar()) {}
                                     else break;
@@ -533,6 +611,10 @@ int defFunc() {
                                     if(consume(END)) {
                                         stergeDomeniu();
                                         crtFn = NULL;
+
+                                        Text_write(&tFunctii, "}\n");
+                                        crtCod = &tMain;
+                                        crtVar = &tInceput;
 
                                         return TRUE;
                                     }
@@ -599,8 +681,10 @@ int defVar() {
                     s->tip = ret.tip;
                 
 
-                    if (consume(SEMICOLON))
+                    if (consume(SEMICOLON)) {
+                        Text_write(crtVar, "%s %s;\n", cType(ret.tip), nume);
                         return TRUE;
+                    }
                     else {
                         idxAtom = atomStart;
                         err("Lipseste ';' la finalul declaratiei de variabila!");
@@ -620,8 +704,13 @@ int defVar() {
 int program() {
     int atomStart = idxAtom;
 
-   adaugaDomeniu();
-   adaugaFnPredefinite();
+    adaugaDomeniu();
+    adaugaFnPredefinite();
+
+    crtCod = &tMain;
+    crtVar = &tInceput;
+    Text_write(&tInceput, "#include \"quick.h\"\n\n");
+    Text_write(&tMain, "\nint main(){\n");
 
     while (1) {
         if (defVar()) {}
@@ -631,6 +720,19 @@ int program() {
     }
 
     if (consume(FINISH)) {
+        Text_write(&tMain, "return 0;\n}\n");
+        FILE *fis;
+        
+        if(!(fis = fopen("1.c", "w"))) {
+            printf("Nu se poate scrie in fisierul 1.c\n");
+            exit(EXIT_FAILURE);
+        }
+
+        fwrite(tInceput.buf, sizeof(char), tInceput.n, fis);
+        fwrite(tFunctii.buf, sizeof(char), tFunctii.n, fis);
+        fwrite(tMain.buf, sizeof(char), tMain.n, fis);
+        fclose(fis);
+
         stergeDomeniu();
         return TRUE;
     }
